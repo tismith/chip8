@@ -216,9 +216,9 @@ mod test {
     #[test]
     fn test_and_reg() {
         let mut cpu = Cpu::new();
-        cpu.v2 = 0x01;
-        cpu.v3 = 0x10;
+        *cpu.id_to_reg_mut(2) = 0x01;
+        *cpu.id_to_reg_mut(3) = 0x10;
         cpu.and_reg(2, 3);
-        assert_eq!(cpu.v2, 0x01 & 0x10);
+        assert_eq!(cpu.id_to_reg(2), 0x01 & 0x10);
     }
 }
