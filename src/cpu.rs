@@ -26,7 +26,6 @@ pub struct Cpu {
 const INSTRUCTION_WIDTH: u16 = 2;
 
 impl Cpu {
-
     ///convert an id to a register reference
     fn id_to_reg(&self, register: u8) -> u8 {
         match register {
