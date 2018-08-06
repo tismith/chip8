@@ -7,6 +7,8 @@ pub struct Cpu {
     v5: u8,
     v6: u8,
     v7: u8,
+    v8: u8,
+    v9: u8,
     va: u8,
     vb: u8,
     vc: u8,
@@ -35,6 +37,8 @@ impl Cpu {
             0x5 => self.v5,
             0x6 => self.v6,
             0x7 => self.v7,
+            0x8 => self.v8,
+            0x9 => self.v9,
             0xA => self.va,
             0xB => self.vb,
             0xC => self.vc,
@@ -56,6 +60,8 @@ impl Cpu {
             0x5 => &mut self.v5,
             0x6 => &mut self.v6,
             0x7 => &mut self.v7,
+            0x8 => &mut self.v8,
+            0x9 => &mut self.v9,
             0xA => &mut self.va,
             0xB => &mut self.vb,
             0xC => &mut self.vc,
@@ -137,9 +143,10 @@ impl Cpu {
 
     ///0x7XRR
     ///add = add constant RR to register VX
+    ///No carry generated
     pub fn add_const(&mut self, register_id: u8, constant: u8) {
         let reg = self.id_to_reg_mut(register_id);
-        *reg += constant;
+        *reg = reg.wrapping_add(constant);
     }
 
     ///0x8XY0
@@ -185,6 +192,25 @@ impl Cpu {
         }
         *self.id_to_reg_mut(register_x_id) = x.wrapping_add(y);
     }
+
+    ///8XY5
+    ///sub vx,vy subtract register VY from VX, borrow stored in register VF
+    ///register VF set to 1 if borrows
+    pub fn sub_reg(&mut self, register_x_id: u8, register_y_id: u8) {
+        let y = self.id_to_reg(register_y_id);
+        let x = self.id_to_reg(register_x_id);
+        if x.checked_sub(y).is_none() {
+            self.vf = 0x01;
+        }
+        *self.id_to_reg_mut(register_x_id) = x.wrapping_sub(y);
+    }
+
+    ///8X06 shr vx  shift register VX right, bit 0 goes into register VF
+    pub fn shr(&mut self, register_x_id: u8) {
+        let x = self.id_to_reg(register_x_id);
+        self.vf = x & 0x01;
+        *self.id_to_reg_mut(register_x_id) = x >> 1;
+    }
 }
 
 impl Default for Cpu {
@@ -198,6 +224,8 @@ impl Default for Cpu {
             v5: 0,
             v6: 0,
             v7: 0,
+            v8: 0,
+            v9: 0,
             va: 0,
             vb: 0,
             vc: 0,
@@ -215,6 +243,32 @@ impl Default for Cpu {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_mov_const() {
+        let mut cpu = Cpu::new();
+        *cpu.id_to_reg_mut(1) = 0x01;
+        cpu.mov_const(1, 0x10);
+        assert_eq!(cpu.id_to_reg(1), 0x10);
+    }
+
+    #[test]
+    fn test_add_const() {
+        let mut cpu = Cpu::new();
+        *cpu.id_to_reg_mut(1) = 0x01;
+        cpu.add_const(1, 0x10);
+        assert_eq!(cpu.id_to_reg(1), 0x01 + 0x10);
+    }
+
+    #[test]
+    fn test_mov_reg() {
+        let mut cpu = Cpu::new();
+        *cpu.id_to_reg_mut(0xA) = 0x01;
+        *cpu.id_to_reg_mut(3) = 0x10;
+        cpu.mov_reg(0xA, 3);
+        assert_eq!(cpu.id_to_reg(0xA), 0x10);
+        assert_eq!(cpu.id_to_reg(3), 0x10);
+    }
 
     #[test]
     fn test_or_reg() {
@@ -273,6 +327,35 @@ mod test {
         cpu.v3 = 0xFF;
         cpu.add_reg(2, 3);
         assert_eq!(cpu.v2, 0xFE);
+        assert_eq!(cpu.vf, 0x01);
+    }
+
+    #[test]
+    fn test_sub_reg() {
+        let mut cpu = Cpu::new();
+        cpu.v2 = 0x10;
+        cpu.v3 = 0x01;
+        cpu.sub_reg(2, 3);
+        assert_eq!(cpu.v2, 0x10 - 0x01);
+        assert_eq!(cpu.v3, 0x01);
+    }
+
+    #[test]
+    fn test_sub_reg_underflow() {
+        let mut cpu = Cpu::new();
+        cpu.v2 = 0x00;
+        cpu.v3 = 0x01;
+        cpu.sub_reg(2, 3);
+        assert_eq!(cpu.v2, 0xFF);
+        assert_eq!(cpu.vf, 0x01);
+    }
+
+    #[test]
+    fn test_shr() {
+        let mut cpu = Cpu::new();
+        cpu.v2 = 0xF1;
+        cpu.shr(2);
+        assert_eq!(cpu.v2, 0x78);
         assert_eq!(cpu.vf, 0x01);
     }
 }
