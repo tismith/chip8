@@ -1,5 +1,5 @@
 [clog]
-repository = "https://github.com/tismith/example-cli-rs"
+repository = "https://github.com/tismith/chip8"
 changelog = "CHANGELOG.md"
 from-latest-tag = true
 

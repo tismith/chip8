@@ -10,7 +10,7 @@ pub fn parse_cmdline() -> types::Settings {
 }
 
 fn matcher<'a, 'b>() -> clap::App<'a, 'b> {
-    clap::App::new(crate_name!())
+    clap::App::new("chip8")
         .version(crate_version!())
         .author(crate_authors!())
         .arg(

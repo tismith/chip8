@@ -1,6 +1,6 @@
 [package]
-name = "example-cli-rs"
-version = "0.1.0"
+name = "chip8-tismith"
+version = "0.0.1"
 authors = ["Toby Smith <toby@tismith.id.au>"]
 license = "MIT"
 

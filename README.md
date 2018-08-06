@@ -1,10 +1,5 @@
-# Basic base application for rust cli programs.
+# Basic CHIP-8 emulator
 
-[![Build Status](https://travis-ci.org/tismith/example-cli-rs.svg?branch=master)](https://travis-ci.org/tismith/example-cli-rs)
-[![codecov](https://codecov.io/gh/tismith/example-cli-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/tismith/example-cli-rs)
+[![Build Status](https://travis-ci.org/tismith/chip8.svg?branch=master)](https://travis-ci.org/tismith/chip8)
+[![codecov](https://codecov.io/gh/tismith/chip8/branch/master/graph/badge.svg)](https://codecov.io/gh/tismith/chip8)
 
-## We are using:
-* `log` and `stderrlog` for configurable logging macros
-* `clap` for commandline argument processing
-* `failure` for error handling
-* `assert_cli` for integration testing
