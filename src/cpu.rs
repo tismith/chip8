@@ -16,13 +16,12 @@ pub struct Cpu {
     ///actually 12 bits
     i: u16,
     ///actually 12 bits, pointer into `memory`
-    pc: u16, 
+    pc: u16,
     sp: Vec<u16>,
     memory: [u8; 4096],
 }
 
 impl Cpu {
-
     ///convert an id to a register reference
     fn id_to_reg(&self, register: u8) -> u8 {
         match register {
@@ -154,7 +153,7 @@ impl Cpu {
     pub fn or_reg(&mut self, register_x_id: u8, register_y_id: u8) {
         let y = self.id_to_reg(register_y_id);
         let x = self.id_to_reg_mut(register_x_id);
-        *x = *x | y;
+        *x |= y;
     }
 
     ///0x8XY2
@@ -162,7 +161,7 @@ impl Cpu {
     pub fn and_reg(&mut self, register_x_id: u8, register_y_id: u8) {
         let y = self.id_to_reg(register_y_id);
         let x = self.id_to_reg_mut(register_x_id);
-        *x = *x & y;
+        *x &= y;
     }
 
     ///0x8XY3
@@ -170,7 +169,7 @@ impl Cpu {
     pub fn xor_reg(&mut self, register_x_id: u8, register_y_id: u8) {
         let y = self.id_to_reg(register_y_id);
         let x = self.id_to_reg_mut(register_x_id);
-        *x = *x ^ y;
+        *x ^= y;
     }
 
     ///0x8XY4
@@ -179,13 +178,10 @@ impl Cpu {
     pub fn add_reg(&mut self, register_x_id: u8, register_y_id: u8) {
         let y = self.id_to_reg(register_y_id);
         let x = self.id_to_reg_mut(register_x_id);
-        *x = *x + y;
+        *x += y;
         //TODO catch carry to stick in v_f
         unimplemented!()
     }
-
-
-
 }
 
 impl Default for Cpu {
@@ -213,3 +209,16 @@ impl Default for Cpu {
     }
 }
 
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_and_reg() {
+        let mut cpu = Cpu::new();
+        cpu.v2 = 0x01;
+        cpu.v3 = 0x10;
+        cpu.and_reg(2, 3);
+        assert_eq!(cpu.v2, 0x01 & 0x10);
+    }
+}
