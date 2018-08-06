@@ -1,5 +1,3 @@
-use std;
-
 pub struct Cpu {
     v0: u8,
     v1: u8,
@@ -182,7 +180,7 @@ impl Cpu {
     pub fn add_reg(&mut self, register_x_id: u8, register_y_id: u8) {
         let y = self.id_to_reg(register_y_id);
         let x = self.id_to_reg(register_x_id);
-        if let None = x.checked_add(y) {
+        if x.checked_add(y).is_none() {
             self.vf = 0x01;
         }
         *self.id_to_reg_mut(register_x_id) = x.wrapping_add(y);
