@@ -1,3 +1,5 @@
+use std;
+
 pub struct Cpu {
     v0: u8,
     v1: u8,
@@ -7,12 +9,12 @@ pub struct Cpu {
     v5: u8,
     v6: u8,
     v7: u8,
-    v_a: u8,
-    v_b: u8,
-    v_c: u8,
-    v_d: u8,
-    v_e: u8,
-    v_f: u8,
+    va: u8,
+    vb: u8,
+    vc: u8,
+    vd: u8,
+    ve: u8,
+    vf: u8,
     ///actually 12 bits
     i: u16,
     ///actually 12 bits, pointer into `memory`
@@ -21,7 +23,10 @@ pub struct Cpu {
     memory: [u8; 4096],
 }
 
+const INSTRUCTION_WIDTH: u16 = 2;
+
 impl Cpu {
+
     ///convert an id to a register reference
     fn id_to_reg(&self, register: u8) -> u8 {
         match register {
@@ -33,12 +38,12 @@ impl Cpu {
             0x5 => self.v5,
             0x6 => self.v6,
             0x7 => self.v7,
-            0xA => self.v_a,
-            0xB => self.v_b,
-            0xC => self.v_c,
-            0xD => self.v_d,
-            0xE => self.v_e,
-            0xF => self.v_f,
+            0xA => self.va,
+            0xB => self.vb,
+            0xC => self.vc,
+            0xD => self.vd,
+            0xE => self.ve,
+            0xF => self.vf,
             _ => panic!("unexpected register id {}", register),
         }
     }
@@ -54,12 +59,12 @@ impl Cpu {
             0x5 => &mut self.v5,
             0x6 => &mut self.v6,
             0x7 => &mut self.v7,
-            0xA => &mut self.v_a,
-            0xB => &mut self.v_b,
-            0xC => &mut self.v_c,
-            0xD => &mut self.v_d,
-            0xE => &mut self.v_e,
-            0xF => &mut self.v_f,
+            0xA => &mut self.va,
+            0xB => &mut self.vb,
+            0xC => &mut self.vc,
+            0xD => &mut self.vd,
+            0xE => &mut self.ve,
+            0xF => &mut self.vf,
             _ => panic!("unexpected register id {}", register),
         }
     }
@@ -81,7 +86,7 @@ impl Cpu {
         if let Some(address) = self.sp.pop() {
             self.pc = address;
         } else {
-            panic!("rts called with no return address");
+            error!("rts called with no return address");
         }
     }
 
@@ -94,7 +99,7 @@ impl Cpu {
     ///0x2NNN (NNN is the address)
     ///jump to subroutine
     pub fn jsr(&mut self, address: u16) {
-        self.sp.push(self.pc + 1);
+        self.sp.push(self.pc + INSTRUCTION_WIDTH);
         self.pc = address;
     }
 
@@ -103,7 +108,7 @@ impl Cpu {
     pub fn skeq_const(&mut self, register_id: u8, constant: u8) {
         let reg = self.id_to_reg(register_id);
         if reg == constant {
-            self.pc += 1;
+            self.pc += INSTRUCTION_WIDTH;
         }
     }
 
@@ -112,7 +117,7 @@ impl Cpu {
     pub fn skne(&mut self, register_id: u8, constant: u8) {
         let reg = self.id_to_reg(register_id);
         if reg != constant {
-            self.pc += 1;
+            self.pc += INSTRUCTION_WIDTH;
         }
     }
 
@@ -122,7 +127,7 @@ impl Cpu {
         let x = self.id_to_reg(register_x_id);
         let y = self.id_to_reg(register_y_id);
         if x != y {
-            self.pc += 1;
+            self.pc += INSTRUCTION_WIDTH;
         }
     }
 
@@ -177,10 +182,11 @@ impl Cpu {
     ///carry stored in register VF
     pub fn add_reg(&mut self, register_x_id: u8, register_y_id: u8) {
         let y = self.id_to_reg(register_y_id);
-        let x = self.id_to_reg_mut(register_x_id);
-        *x += y;
-        //TODO catch carry to stick in v_f
-        unimplemented!()
+        let x = self.id_to_reg(register_x_id);
+        if let None = x.checked_add(y) {
+            self.vf = 0x01;
+        }
+        *self.id_to_reg_mut(register_x_id) = x.wrapping_add(y);
     }
 }
 
@@ -195,12 +201,12 @@ impl Default for Cpu {
             v5: 0,
             v6: 0,
             v7: 0,
-            v_a: 0,
-            v_b: 0,
-            v_c: 0,
-            v_d: 0,
-            v_e: 0,
-            v_f: 0,
+            va: 0,
+            vb: 0,
+            vc: 0,
+            vd: 0,
+            ve: 0,
+            vf: 0,
             i: 0,
             pc: 0x200,
             sp: Vec::new(),
@@ -212,6 +218,16 @@ impl Default for Cpu {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_or_reg() {
+        let mut cpu = Cpu::new();
+        *cpu.id_to_reg_mut(0xA) = 0x01;
+        *cpu.id_to_reg_mut(3) = 0x10;
+        cpu.or_reg(0xA, 3);
+        assert_eq!(cpu.id_to_reg(0xA), 0x01 | 0x10);
+        assert_eq!(cpu.id_to_reg(3), 0x10);
+    }
 
     #[test]
     fn test_xor_reg() {
@@ -231,5 +247,35 @@ mod test {
         cpu.and_reg(2, 3);
         assert_eq!(cpu.id_to_reg(2), 0x01 & 0x10);
         assert_eq!(cpu.id_to_reg(3), 0x10);
+    }
+
+    #[test]
+    fn test_add_reg() {
+        let mut cpu = Cpu::new();
+        cpu.v2 = 0x01;
+        cpu.v3 = 0x10;
+        cpu.add_reg(2, 3);
+        assert_eq!(cpu.v2, 0x01 + 0x10);
+        assert_eq!(cpu.v3, 0x10);
+    }
+
+    #[test]
+    fn test_add_reg_overflow() {
+        let mut cpu = Cpu::new();
+        cpu.v2 = 0xFF;
+        cpu.v3 = 0x01;
+        cpu.add_reg(2, 3);
+        assert_eq!(cpu.v2, 0x00);
+        assert_eq!(cpu.vf, 0x01);
+    }
+
+    #[test]
+    fn test_add_reg_overflow2() {
+        let mut cpu = Cpu::new();
+        cpu.v2 = 0xFF;
+        cpu.v3 = 0xFF;
+        cpu.add_reg(2, 3);
+        assert_eq!(cpu.v2, 0xFE);
+        assert_eq!(cpu.vf, 0x01);
     }
 }

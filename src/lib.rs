@@ -1,5 +1,6 @@
 //standard includes
 pub extern crate failure;
+#[macro_use]
 pub extern crate log;
 pub extern crate stderrlog;
 #[macro_use]
