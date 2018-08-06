@@ -214,11 +214,22 @@ mod test {
     use super::*;
 
     #[test]
+    fn test_xor_reg() {
+        let mut cpu = Cpu::new();
+        *cpu.id_to_reg_mut(0xA) = 0x01;
+        *cpu.id_to_reg_mut(3) = 0x10;
+        cpu.xor_reg(0xA, 3);
+        assert_eq!(cpu.id_to_reg(0xA), 0x01 ^ 0x10);
+        assert_eq!(cpu.id_to_reg(3), 0x10);
+    }
+
+    #[test]
     fn test_and_reg() {
         let mut cpu = Cpu::new();
         *cpu.id_to_reg_mut(2) = 0x01;
         *cpu.id_to_reg_mut(3) = 0x10;
         cpu.and_reg(2, 3);
         assert_eq!(cpu.id_to_reg(2), 0x01 & 0x10);
+        assert_eq!(cpu.id_to_reg(3), 0x10);
     }
 }
