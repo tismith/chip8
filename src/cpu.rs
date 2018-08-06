@@ -70,14 +70,14 @@ impl Cpu {
         Default::default()
     }
 
-    ///clear the screen
     ///0x00E0
+    ///clear the screen
     pub fn cls(&mut self) {
         unimplemented!()
     }
 
-    ///return from subroutine
     ///0x00EE
+    ///return from subroutine
     pub fn rts(&mut self) {
         if let Some(address) = self.sp.pop() {
             self.pc = address;
@@ -86,21 +86,21 @@ impl Cpu {
         }
     }
 
-    ///jump to address
     ///0x1NNN (NNN is the address)
+    ///jump to address
     pub fn jmp(&mut self, address: u16) {
         self.pc = address;
     }
 
-    ///jump to subroutine
     ///0x2NNN (NNN is the address)
+    ///jump to subroutine
     pub fn jsr(&mut self, address: u16) {
         self.sp.push(self.pc + 1);
         self.pc = address;
     }
 
-    ///skeq - skip next instruction if register VX == constant RR
     ///0x3XRR
+    ///skeq - skip next instruction if register VX == constant RR
     pub fn skeq_const(&mut self, register_id: u8, constant: u8) {
         let reg = self.id_to_reg(register_id);
         if reg == constant {
@@ -108,8 +108,8 @@ impl Cpu {
         }
     }
 
-    ///skne - skip next intruction if register VX != constant RR
     ///0x4XRR
+    ///skne - skip next intruction if register VX != constant RR
     pub fn skne(&mut self, register_id: u8, constant: u8) {
         let reg = self.id_to_reg(register_id);
         if reg != constant {
@@ -117,8 +117,8 @@ impl Cpu {
         }
     }
 
-    ///skeq - skip next instruction if register VX == register VY
     ///0x5XY0
+    ///skeq - skip next instruction if register VX == register VY
     pub fn skeq_reg(&mut self, register_x_id: u8, register_y_id: u8) {
         let x = self.id_to_reg(register_x_id);
         let y = self.id_to_reg(register_y_id);
@@ -127,55 +127,55 @@ impl Cpu {
         }
     }
 
-    ///mov - move constant RR to register VX
     ///0x6XRR
+    ///mov - move constant RR to register VX
     pub fn mov_const(&mut self, register_x_id: u8, constant: u8) {
         let reg = self.id_to_reg_mut(register_x_id);
         *reg = constant;
     }
 
-    ///add = add constant RR to register VX
     ///0x7XRR
+    ///add = add constant RR to register VX
     pub fn add_const(&mut self, register_id: u8, constant: u8) {
         let reg = self.id_to_reg_mut(register_id);
         *reg += constant;
     }
 
-    ///mov_reg move register VY into VX
     ///0x8XY0
+    ///mov_reg move register VY into VX
     pub fn mov_reg(&mut self, register_x_id: u8, register_y_id: u8) {
         let y = self.id_to_reg(register_y_id);
         let x = self.id_to_reg_mut(register_x_id);
         *x = y;
     }
 
-    ///or register VY with register VX, store result into register VX
     ///0x8XY1
+    ///or register VY with register VX, store result into register VX
     pub fn or_reg(&mut self, register_x_id: u8, register_y_id: u8) {
         let y = self.id_to_reg(register_y_id);
         let x = self.id_to_reg_mut(register_x_id);
         *x = *x | y;
     }
 
-    ///and register VY with register VX, store result into register VX
     ///0x8XY2
+    ///and register VY with register VX, store result into register VX
     pub fn and_reg(&mut self, register_x_id: u8, register_y_id: u8) {
         let y = self.id_to_reg(register_y_id);
         let x = self.id_to_reg_mut(register_x_id);
         *x = *x & y;
     }
 
-    ///xor register VY with register VX, store result into register VX
     ///0x8XY3
+    ///xor register VY with register VX, store result into register VX
     pub fn xor_reg(&mut self, register_x_id: u8, register_y_id: u8) {
         let y = self.id_to_reg(register_y_id);
         let x = self.id_to_reg_mut(register_x_id);
         *x = *x ^ y;
     }
 
+    ///0x8XY4
     ///add_reg add register VY to VX, store result in register VX,
     ///carry stored in register VF
-    ///0x8XY4
     pub fn add_reg(&mut self, register_x_id: u8, register_y_id: u8) {
         let y = self.id_to_reg(register_y_id);
         let x = self.id_to_reg_mut(register_x_id);
@@ -183,6 +183,8 @@ impl Cpu {
         //TODO catch carry to stick in v_f
         unimplemented!()
     }
+
+
 
 }
 
