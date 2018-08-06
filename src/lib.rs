@@ -6,4 +6,5 @@ pub extern crate stderrlog;
 pub extern crate clap;
 pub extern crate exitfailure;
 
+pub mod cpu;
 pub mod utils;
