@@ -1,3 +1,6 @@
+//! The CHIP-8 CPU emulation and instruction set
+
+///The core CPU registers and memory
 pub struct Cpu {
     v0: u8,
     v1: u8,
@@ -117,7 +120,7 @@ impl Cpu {
 
     ///0x4XRR
     ///skne - skip next intruction if register VX != constant RR
-    pub fn skne(&mut self, register_id: u8, constant: u8) {
+    pub fn skne_const(&mut self, register_id: u8, constant: u8) {
         let reg = self.id_to_reg(register_id);
         if reg != constant {
             self.pc += INSTRUCTION_WIDTH;
@@ -129,7 +132,7 @@ impl Cpu {
     pub fn skeq_reg(&mut self, register_x_id: u8, register_y_id: u8) {
         let x = self.id_to_reg(register_x_id);
         let y = self.id_to_reg(register_y_id);
-        if x != y {
+        if x == y {
             self.pc += INSTRUCTION_WIDTH;
         }
     }
@@ -245,6 +248,69 @@ mod test {
     use super::*;
 
     #[test]
+    fn test_jsr_rts() {
+        let mut cpu = Cpu::new();
+        cpu.jsr(0x400);
+        assert_eq!(cpu.pc, 0x400);
+
+        cpu.rts();
+        assert_eq!(cpu.pc, 0x202);
+    }
+
+    #[test]
+    fn test_jsr_rts_nested() {
+        let mut cpu = Cpu::new();
+        cpu.jsr(0x400);
+        assert_eq!(cpu.pc, 0x400);
+        cpu.jsr(0x430);
+        assert_eq!(cpu.pc, 0x430);
+        cpu.jsr(0x440);
+        assert_eq!(cpu.pc, 0x440);
+
+        cpu.rts();
+        assert_eq!(cpu.pc, 0x432);
+        cpu.rts();
+        assert_eq!(cpu.pc, 0x402);
+        cpu.rts();
+        assert_eq!(cpu.pc, 0x202);
+    }
+
+    #[test]
+    fn test_skeq_const() {
+        let mut cpu = Cpu::new();
+        *cpu.id_to_reg_mut(0) = 0x01;
+        cpu.skeq_const(0, 0x01);
+        assert_eq!(cpu.pc, 0x202);
+
+        cpu.skeq_const(0, 0x02);
+        assert_eq!(cpu.pc, 0x202);
+    }
+
+    #[test]
+    fn test_skne_const() {
+        let mut cpu = Cpu::new();
+        *cpu.id_to_reg_mut(0) = 0x01;
+        cpu.skne_const(0, 0x01);
+        assert_eq!(cpu.pc, 0x200);
+
+        cpu.skne_const(0, 0x02);
+        assert_eq!(cpu.pc, 0x202);
+    }
+
+    #[test]
+    fn test_skeq_reg() {
+        let mut cpu = Cpu::new();
+        *cpu.id_to_reg_mut(0) = 0x01;
+        *cpu.id_to_reg_mut(1) = 0x01;
+        cpu.skeq_reg(0, 1);
+        assert_eq!(cpu.pc, 0x202);
+
+        *cpu.id_to_reg_mut(2) = 0x02;
+        cpu.skeq_reg(1, 2);
+        assert_eq!(cpu.pc, 0x202);
+    }
+
+    #[test]
     fn test_mov_const() {
         let mut cpu = Cpu::new();
         *cpu.id_to_reg_mut(1) = 0x01;
@@ -303,59 +369,59 @@ mod test {
     #[test]
     fn test_add_reg() {
         let mut cpu = Cpu::new();
-        cpu.v2 = 0x01;
-        cpu.v3 = 0x10;
-        cpu.add_reg(2, 3);
-        assert_eq!(cpu.v2, 0x01 + 0x10);
-        assert_eq!(cpu.v3, 0x10);
+        cpu.vd = 0x01;
+        cpu.ve = 0x10;
+        cpu.add_reg(0xd, 0xe);
+        assert_eq!(cpu.vd, 0x01 + 0x10);
+        assert_eq!(cpu.ve, 0x10);
     }
 
     #[test]
     fn test_add_reg_overflow() {
         let mut cpu = Cpu::new();
-        cpu.v2 = 0xFF;
-        cpu.v3 = 0x01;
-        cpu.add_reg(2, 3);
-        assert_eq!(cpu.v2, 0x00);
+        cpu.vc = 0xFF;
+        cpu.vd = 0x01;
+        cpu.add_reg(0xc, 0xd);
+        assert_eq!(cpu.vc, 0x00);
         assert_eq!(cpu.vf, 0x01);
     }
 
     #[test]
     fn test_add_reg_overflow2() {
         let mut cpu = Cpu::new();
-        cpu.v2 = 0xFF;
-        cpu.v3 = 0xFF;
-        cpu.add_reg(2, 3);
-        assert_eq!(cpu.v2, 0xFE);
+        cpu.va = 0xFF;
+        cpu.vb = 0xFF;
+        cpu.add_reg(0xa, 0xb);
+        assert_eq!(cpu.va, 0xFE);
         assert_eq!(cpu.vf, 0x01);
     }
 
     #[test]
     fn test_sub_reg() {
         let mut cpu = Cpu::new();
-        cpu.v2 = 0x10;
-        cpu.v3 = 0x01;
-        cpu.sub_reg(2, 3);
-        assert_eq!(cpu.v2, 0x10 - 0x01);
-        assert_eq!(cpu.v3, 0x01);
+        cpu.v8 = 0x10;
+        cpu.v9 = 0x01;
+        cpu.sub_reg(8, 9);
+        assert_eq!(cpu.v8, 0x10 - 0x01);
+        assert_eq!(cpu.v9, 0x01);
     }
 
     #[test]
     fn test_sub_reg_underflow() {
         let mut cpu = Cpu::new();
-        cpu.v2 = 0x00;
-        cpu.v3 = 0x01;
-        cpu.sub_reg(2, 3);
-        assert_eq!(cpu.v2, 0xFF);
+        cpu.v5 = 0x00;
+        cpu.v6 = 0x01;
+        cpu.sub_reg(5, 6);
+        assert_eq!(cpu.v5, 0xFF);
         assert_eq!(cpu.vf, 0x01);
     }
 
     #[test]
     fn test_shr() {
         let mut cpu = Cpu::new();
-        cpu.v2 = 0xF1;
-        cpu.shr(2);
-        assert_eq!(cpu.v2, 0x78);
+        cpu.v7 = 0xF1;
+        cpu.shr(7);
+        assert_eq!(cpu.v7, 0x78);
         assert_eq!(cpu.vf, 0x01);
     }
 }
