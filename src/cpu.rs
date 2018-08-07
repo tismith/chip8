@@ -1,5 +1,7 @@
 //! The CHIP-8 CPU emulation and instruction set
 
+use rand;
+
 ///The core CPU registers and memory
 pub struct Cpu {
     v0: u8,
@@ -190,10 +192,11 @@ impl Cpu {
     pub fn add_reg(&mut self, register_x_id: u8, register_y_id: u8) {
         let y = self.id_to_reg(register_y_id);
         let x = self.id_to_reg(register_x_id);
-        if x.checked_add(y).is_none() {
+        let (result, overflow) = x.overflowing_add(y);
+        if overflow {
             self.vf = 0x01;
         }
-        *self.id_to_reg_mut(register_x_id) = x.wrapping_add(y);
+        *self.id_to_reg_mut(register_x_id) = result;
     }
 
     ///8XY5
@@ -202,10 +205,11 @@ impl Cpu {
     pub fn sub_reg(&mut self, register_x_id: u8, register_y_id: u8) {
         let y = self.id_to_reg(register_y_id);
         let x = self.id_to_reg(register_x_id);
-        if x.checked_sub(y).is_none() {
+        let (result, borrow) = x.overflowing_sub(y);
+        if borrow {
             self.vf = 0x01;
         }
-        *self.id_to_reg_mut(register_x_id) = x.wrapping_sub(y);
+        *self.id_to_reg_mut(register_x_id) = result;
     }
 
     ///8X06 shr vx  shift register VX right, bit 0 goes into register VF
@@ -213,6 +217,53 @@ impl Cpu {
         let x = self.id_to_reg(register_x_id);
         self.vf = x & 0x01;
         *self.id_to_reg_mut(register_x_id) = x >> 1;
+    }
+
+    ///8XY7 rsb vx,vy   subtract register VX from register VY
+    ///result stored in register VX
+    ///register F set to 1 if borrows
+    pub fn rsb(&mut self, register_x_id: u8, register_y_id: u8) {
+        let y = self.id_to_reg(register_y_id);
+        let x = self.id_to_reg(register_x_id);
+        let (result, borrow) = y.overflowing_sub(x);
+        if borrow {
+            self.vf = 0x01;
+        }
+        *self.id_to_reg_mut(register_x_id) = result;
+    }
+
+    ///8X0E shl vx  shift register VX left, bit 7 stored into register VF
+    pub fn shl(&mut self, register_x_id: u8) {
+        let x = self.id_to_reg(register_x_id);
+        if x & 0x80 != 0 {
+            self.vf = 0x01;
+        }
+        *self.id_to_reg_mut(register_x_id) = x << 1;
+    }
+
+    ///9XY0 skne vx,vy  skip next instruction
+    ///if register VX != register VY
+    pub fn skne_reg(&mut self, register_x_id: u8, register_y_id: u8) {
+        let x = self.id_to_reg(register_x_id);
+        let y = self.id_to_reg(register_y_id);
+        if x != y {
+            self.pc += INSTRUCTION_WIDTH;
+        }
+    }
+
+    ///ANNN mvi nnn Load index register (I) with constant NNN
+    pub fn mvi(&mut self, value: u16) {
+        self.i = value & 0xFFF;
+    }
+
+    ///BNNN jmi nnn Jump to address NNN + register V0
+    pub fn jmi(&mut self, value: u16) {
+        self.pc = u16::from(self.id_to_reg(0)).wrapping_add(value & 0xFFF);
+    }
+
+    ///CXKK rand vx,kk register VX = random number AND KK
+    pub fn rand(&mut self, register_x_id: u8, value: u8) {
+        *self.id_to_reg_mut(register_x_id) = rand::random::<u8>() & value;
     }
 }
 
@@ -246,6 +297,16 @@ impl Default for Cpu {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_jmp() {
+        let mut cpu = Cpu::new();
+        cpu.jmp(0x400);
+        assert_eq!(cpu.pc, 0x400);
+
+        cpu.jmp(0x600);
+        assert_eq!(cpu.pc, 0x600);
+    }
 
     #[test]
     fn test_jsr_rts() {
@@ -424,4 +485,74 @@ mod test {
         assert_eq!(cpu.v7, 0x78);
         assert_eq!(cpu.vf, 0x01);
     }
+
+    #[test]
+    fn test_rsb() {
+        let mut cpu = Cpu::new();
+        cpu.v8 = 0x01;
+        cpu.v9 = 0x10;
+        cpu.rsb(8, 9);
+        assert_eq!(cpu.v8, 0x10 - 0x01);
+        assert_eq!(cpu.v9, 0x10);
+    }
+
+    #[test]
+    fn test_rsb_underflow() {
+        let mut cpu = Cpu::new();
+        cpu.v5 = 0x01;
+        cpu.v6 = 0x00;
+        cpu.rsb(5, 6);
+        assert_eq!(cpu.v5, 0xFF);
+        assert_eq!(cpu.vf, 0x01);
+    }
+
+    #[test]
+    fn test_shl() {
+        let mut cpu = Cpu::new();
+        cpu.v7 = 0xF1;
+        cpu.shl(7);
+        assert_eq!(cpu.v7, 0xE2);
+        assert_eq!(cpu.vf, 0x01);
+    }
+
+    #[test]
+    fn test_skne_reg() {
+        let mut cpu = Cpu::new();
+        *cpu.id_to_reg_mut(0) = 0x01;
+        *cpu.id_to_reg_mut(1) = 0x01;
+        cpu.skne_reg(0, 1);
+        assert_eq!(cpu.pc, 0x200);
+
+        *cpu.id_to_reg_mut(2) = 0x02;
+        cpu.skne_reg(1, 2);
+        assert_eq!(cpu.pc, 0x202);
+    }
+
+    #[test]
+    fn test_mvi() {
+        let mut cpu = Cpu::new();
+        cpu.mvi(0x123);
+        assert_eq!(cpu.i, 0x123);
+
+        cpu.mvi(0xF321);
+        assert_eq!(cpu.i, 0x321);
+    }
+
+    #[test]
+    fn test_jmi() {
+        let mut cpu = Cpu::new();
+        *cpu.id_to_reg_mut(0) = 0x10;
+        cpu.jmi(0xF00);
+        assert_eq!(cpu.pc, 0xF10);
+    }
+
+    #[test]
+    fn test_rand() {
+        let mut cpu = Cpu::new();
+        *cpu.id_to_reg_mut(0xB) = 0x10;
+        cpu.rand(0xB, 0x0F);
+        assert_ne!(cpu.id_to_reg(0xB), 0x10);
+        assert_eq!(cpu.id_to_reg(0xB) & 0xF0, 0x00);
+    }
+
 }

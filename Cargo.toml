@@ -10,6 +10,7 @@ log = "0.4.3"
 stderrlog = "0.4.1"
 clap = "2.32.0"
 exitfailure = "0.5.1"
+rand = "0.5.4"
 
 [dev-dependencies]
 assert_cli = "0.6"
