@@ -265,6 +265,92 @@ impl Cpu {
     pub fn rand(&mut self, register_x_id: u8, value: u8) {
         *self.id_to_reg_mut(register_x_id) = rand::random::<u8>() & value;
     }
+
+    ///DXYN sprite vx,vy,n  Draw sprite at screen location
+    ///(register VX,register VY) height N
+    ///Sprites stored in memory at location in index register (I),
+    ///maximum 8bits wide. Wraps around
+    ///the screen. If when drawn, clears a pixel,
+    ///register VF is set to 1 otherwise it is zero. All
+    ///drawing is XOR drawing (e.g. it toggles the screen pixels)
+    pub fn sprite(&mut self, register_x_id: u8, register_y_id: u8) {
+        unimplemented!()
+    }
+
+    ///ek9e skpr k  skip if key (register rk) pressed
+    ///The key is a key number, see the chip-8
+    ///documentation
+    pub fn skpr(&mut self, key_id: u8) {
+        unimplemented!()
+    }
+
+    ///eka1 skup k  skip if key (register rk) not pressed
+    pub fn skup(&mut self, key_id: u8) {
+        unimplemented!()
+    }
+
+    ///fr07 gdelay vr   get delay timer into vr
+    pub fn gdelay(&mut self, register_x_id: u8) {
+        unimplemented!()
+    }
+
+    ///fr0a key vr  wait for for keypress,put key in register vr
+    pub fn key(&mut self, register_x_id: u8) {
+        unimplemented!()
+    }
+
+    ///fr15 sdelay vr   set the delay timer to vr
+    pub fn sdelay(&mut self, register_x_id: u8) {
+        unimplemented!()
+    }
+
+    ///fr18 ssound vr   set the sound timer to vr
+    pub fn ssound(&mut self, register_x_id: u8) {
+        unimplemented!()
+    }
+
+    ///fr1e adi vr  add register vr to the index register
+    pub fn adi(&mut self, register_x_id: u8) {
+        self.i = self
+            .i
+            .wrapping_add(u16::from(self.id_to_reg(register_x_id)));
+    }
+
+    ///fr29 font vr point I to the sprite for hexadecimal
+    ///character in vr   Sprite is 5 bytes high
+    pub fn font(&mut self, register_x_id: u8) {
+        unimplemented!()
+    }
+
+    ///fr33 bcd vr  store the bcd representation of register vr
+    ///at location I,I+1,I+2
+    ///Doesn't change I
+    pub fn bcd(&mut self, register_x_id: u8) {
+        if self.i >= (4096 - 3) {
+            error!("bcd called with I too large: {}", self.i);
+            return;
+        }
+        let x = self.id_to_reg(register_x_id);
+        let x100 = x / 100;
+        let x10 = (x - (x100 * 100)) / 10;
+        let x1 = x - (x100 * 100) - (x10 * 10);
+        self.memory[usize::from(self.i)] = x100;
+        self.memory[usize::from(self.i + 1)] = x10;
+        self.memory[usize::from(self.i + 2)] = x1;
+    }
+
+    ///fr55 str v0-vr   store registers v0-vr at location I onwards
+    ///I is incremented to point to
+    ///the next location on. e.g. I = I + r + 1
+    pub fn str(&mut self, register_x_id: u8) {
+        unimplemented!()
+    }
+
+    ///fx65 ldr v0-vr   load registers v0-vr from location I onwards
+    ///as above.
+    pub fn ldr(&mut self, register_x_id: u8) {
+        unimplemented!()
+    }
 }
 
 impl Default for Cpu {
@@ -555,4 +641,23 @@ mod test {
         assert_eq!(cpu.id_to_reg(0xB) & 0xF0, 0x00);
     }
 
+    #[test]
+    fn test_bcd() {
+        let mut cpu = Cpu::new();
+        *cpu.id_to_reg_mut(0xB) = 123;
+        cpu.i = 0x300;
+        cpu.bcd(0xB);
+        assert_eq!(cpu.memory[0x300], 1);
+        assert_eq!(cpu.memory[0x301], 2);
+        assert_eq!(cpu.memory[0x302], 3);
+    }
+
+    #[test]
+    fn test_adi() {
+        let mut cpu = Cpu::new();
+        *cpu.id_to_reg_mut(7) = 0x10;
+        cpu.i = 0x01;
+        cpu.adi(7);
+        assert_eq!(cpu.i, 0x10 + 0x01);
+    }
 }
