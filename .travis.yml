@@ -44,6 +44,9 @@ matrix:
             - binutils-dev
             - cmake
 
+before_install:
+  - [ $TRAVIS_OS_NAME = 'osx' ] && brew install sdl2
+  - [ $TRAVIS_OS_NAME = 'linux' ] && sudo apt-get install -y libsdl2-dev
 script: |
   export RUST_BACKTRACE=1 &&
   cargo build --verbose &&
