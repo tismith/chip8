@@ -11,6 +11,7 @@ fn main() -> Result<(), exitfailure::ExitFailure> {
     let mut config = utils::cmdline::parse_cmdline();
     config.module_path = Some(module_path!().into());
     utils::logging::configure_logger(&config)?;
+    let mut _cpu = cpu::Cpu::new();
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
@@ -46,3 +47,5 @@ fn main() -> Result<(), exitfailure::ExitFailure> {
 
     Ok(())
 }
+
+

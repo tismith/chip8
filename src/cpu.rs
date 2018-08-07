@@ -4,27 +4,13 @@ use rand;
 
 ///The core CPU registers and memory
 pub struct Cpu {
-    v0: u8,
-    v1: u8,
-    v2: u8,
-    v3: u8,
-    v4: u8,
-    v5: u8,
-    v6: u8,
-    v7: u8,
-    v8: u8,
-    v9: u8,
-    va: u8,
-    vb: u8,
-    vc: u8,
-    vd: u8,
-    ve: u8,
-    vf: u8,
+    register: [u8; 16],
     ///actually 12 bits
     i: u16,
     ///actually 12 bits, pointer into `memory`
     pc: u16,
     sp: Vec<u16>,
+    screen: [u8; 64 * 32 / 8],
     memory: [u8; 4096],
 }
 
@@ -33,48 +19,18 @@ const INSTRUCTION_WIDTH: u16 = 2;
 impl Cpu {
     ///convert an id to a register reference
     fn id_to_reg(&self, register: u8) -> u8 {
-        match register {
-            0x0 => self.v0,
-            0x1 => self.v1,
-            0x2 => self.v2,
-            0x3 => self.v3,
-            0x4 => self.v4,
-            0x5 => self.v5,
-            0x6 => self.v6,
-            0x7 => self.v7,
-            0x8 => self.v8,
-            0x9 => self.v9,
-            0xA => self.va,
-            0xB => self.vb,
-            0xC => self.vc,
-            0xD => self.vd,
-            0xE => self.ve,
-            0xF => self.vf,
-            _ => panic!("unexpected register id {}", register),
+        if register <= 0x0F {
+            return self.register[usize::from(register)];
         }
+        panic!("unexpected register id {}", register)
     }
 
     ///convert an id to a mutable register reference
     fn id_to_reg_mut(&mut self, register: u8) -> &mut u8 {
-        match register {
-            0x0 => &mut self.v0,
-            0x1 => &mut self.v1,
-            0x2 => &mut self.v2,
-            0x3 => &mut self.v3,
-            0x4 => &mut self.v4,
-            0x5 => &mut self.v5,
-            0x6 => &mut self.v6,
-            0x7 => &mut self.v7,
-            0x8 => &mut self.v8,
-            0x9 => &mut self.v9,
-            0xA => &mut self.va,
-            0xB => &mut self.vb,
-            0xC => &mut self.vc,
-            0xD => &mut self.vd,
-            0xE => &mut self.ve,
-            0xF => &mut self.vf,
-            _ => panic!("unexpected register id {}", register),
+        if register <= 0x0F {
+            return &mut self.register[usize::from(register)];
         }
+        panic!("unexpected register id {}", register)
     }
 
     ///new, initialized cpu
@@ -85,7 +41,9 @@ impl Cpu {
     ///0x00E0
     ///clear the screen
     pub fn cls(&mut self) {
-        unimplemented!()
+        for x in self.screen.iter_mut() {
+            *x = 0;
+        }
     }
 
     ///0x00EE
@@ -194,7 +152,7 @@ impl Cpu {
         let x = self.id_to_reg(register_x_id);
         let (result, overflow) = x.overflowing_add(y);
         if overflow {
-            self.vf = 0x01;
+            self.register[0x0F] = 0x01;
         }
         *self.id_to_reg_mut(register_x_id) = result;
     }
@@ -207,7 +165,7 @@ impl Cpu {
         let x = self.id_to_reg(register_x_id);
         let (result, borrow) = x.overflowing_sub(y);
         if borrow {
-            self.vf = 0x01;
+            self.register[0x0F] = 0x01;
         }
         *self.id_to_reg_mut(register_x_id) = result;
     }
@@ -215,7 +173,7 @@ impl Cpu {
     ///8X06 shr vx  shift register VX right, bit 0 goes into register VF
     pub fn shr(&mut self, register_x_id: u8) {
         let x = self.id_to_reg(register_x_id);
-        self.vf = x & 0x01;
+        self.register[0x0F] = x & 0x01;
         *self.id_to_reg_mut(register_x_id) = x >> 1;
     }
 
@@ -227,7 +185,7 @@ impl Cpu {
         let x = self.id_to_reg(register_x_id);
         let (result, borrow) = y.overflowing_sub(x);
         if borrow {
-            self.vf = 0x01;
+            self.register[0x0F] = 0x01;
         }
         *self.id_to_reg_mut(register_x_id) = result;
     }
@@ -236,7 +194,7 @@ impl Cpu {
     pub fn shl(&mut self, register_x_id: u8) {
         let x = self.id_to_reg(register_x_id);
         if x & 0x80 != 0 {
-            self.vf = 0x01;
+            self.register[0x0F] = 0x01;
         }
         *self.id_to_reg_mut(register_x_id) = x << 1;
     }
@@ -356,25 +314,11 @@ impl Cpu {
 impl Default for Cpu {
     fn default() -> Self {
         Cpu {
-            v0: 0,
-            v1: 0,
-            v2: 0,
-            v3: 0,
-            v4: 0,
-            v5: 0,
-            v6: 0,
-            v7: 0,
-            v8: 0,
-            v9: 0,
-            va: 0,
-            vb: 0,
-            vc: 0,
-            vd: 0,
-            ve: 0,
-            vf: 0,
+            register: [0; 16],
             i: 0,
             pc: 0x200,
             sp: Vec::new(),
+            screen: [0; 64 * 32 / 8],
             memory: [0; 4096],
         }
     }
@@ -383,6 +327,16 @@ impl Default for Cpu {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_cls() {
+        let mut cpu = Cpu::new();
+        cpu.screen[0] = 0xFF;
+        cpu.screen[255] = 0xFF;
+        cpu.cls();
+        assert_eq!(cpu.screen[0], 0x00);
+        assert_eq!(cpu.screen[255], 0x00);
+    }
 
     #[test]
     fn test_jmp() {
@@ -516,89 +470,89 @@ mod test {
     #[test]
     fn test_add_reg() {
         let mut cpu = Cpu::new();
-        cpu.vd = 0x01;
-        cpu.ve = 0x10;
+        cpu.register[0x0D] = 0x01;
+        cpu.register[0x0E] = 0x10;
         cpu.add_reg(0xd, 0xe);
-        assert_eq!(cpu.vd, 0x01 + 0x10);
-        assert_eq!(cpu.ve, 0x10);
+        assert_eq!(cpu.register[0x0D], 0x01 + 0x10);
+        assert_eq!(cpu.register[0x0E], 0x10);
     }
 
     #[test]
     fn test_add_reg_overflow() {
         let mut cpu = Cpu::new();
-        cpu.vc = 0xFF;
-        cpu.vd = 0x01;
+        cpu.register[0x0C] = 0xFF;
+        cpu.register[0x0D] = 0x01;
         cpu.add_reg(0xc, 0xd);
-        assert_eq!(cpu.vc, 0x00);
-        assert_eq!(cpu.vf, 0x01);
+        assert_eq!(cpu.register[0x0C], 0x00);
+        assert_eq!(cpu.register[0x0F], 0x01);
     }
 
     #[test]
     fn test_add_reg_overflow2() {
         let mut cpu = Cpu::new();
-        cpu.va = 0xFF;
-        cpu.vb = 0xFF;
+        cpu.register[0x0A] = 0xFF;
+        cpu.register[0x0B] = 0xFF;
         cpu.add_reg(0xa, 0xb);
-        assert_eq!(cpu.va, 0xFE);
-        assert_eq!(cpu.vf, 0x01);
+        assert_eq!(cpu.register[0x0A], 0xFE);
+        assert_eq!(cpu.register[0x0F], 0x01);
     }
 
     #[test]
     fn test_sub_reg() {
         let mut cpu = Cpu::new();
-        cpu.v8 = 0x10;
-        cpu.v9 = 0x01;
+        cpu.register[0x08] = 0x10;
+        cpu.register[0x09] = 0x01;
         cpu.sub_reg(8, 9);
-        assert_eq!(cpu.v8, 0x10 - 0x01);
-        assert_eq!(cpu.v9, 0x01);
+        assert_eq!(cpu.register[0x08], 0x10 - 0x01);
+        assert_eq!(cpu.register[0x09], 0x01);
     }
 
     #[test]
     fn test_sub_reg_underflow() {
         let mut cpu = Cpu::new();
-        cpu.v5 = 0x00;
-        cpu.v6 = 0x01;
+        cpu.register[0x05] = 0x00;
+        cpu.register[0x06] = 0x01;
         cpu.sub_reg(5, 6);
-        assert_eq!(cpu.v5, 0xFF);
-        assert_eq!(cpu.vf, 0x01);
+        assert_eq!(cpu.register[0x05], 0xFF);
+        assert_eq!(cpu.register[0x0F], 0x01);
     }
 
     #[test]
     fn test_shr() {
         let mut cpu = Cpu::new();
-        cpu.v7 = 0xF1;
+        cpu.register[0x07] = 0xF1;
         cpu.shr(7);
-        assert_eq!(cpu.v7, 0x78);
-        assert_eq!(cpu.vf, 0x01);
+        assert_eq!(cpu.register[0x07], 0x78);
+        assert_eq!(cpu.register[0x0F], 0x01);
     }
 
     #[test]
     fn test_rsb() {
         let mut cpu = Cpu::new();
-        cpu.v8 = 0x01;
-        cpu.v9 = 0x10;
+        cpu.register[0x08] = 0x01;
+        cpu.register[0x09] = 0x10;
         cpu.rsb(8, 9);
-        assert_eq!(cpu.v8, 0x10 - 0x01);
-        assert_eq!(cpu.v9, 0x10);
+        assert_eq!(cpu.register[0x08], 0x10 - 0x01);
+        assert_eq!(cpu.register[0x09], 0x10);
     }
 
     #[test]
     fn test_rsb_underflow() {
         let mut cpu = Cpu::new();
-        cpu.v5 = 0x01;
-        cpu.v6 = 0x00;
+        cpu.register[0x05] = 0x01;
+        cpu.register[0x06] = 0x00;
         cpu.rsb(5, 6);
-        assert_eq!(cpu.v5, 0xFF);
-        assert_eq!(cpu.vf, 0x01);
+        assert_eq!(cpu.register[0x05], 0xFF);
+        assert_eq!(cpu.register[0x0F], 0x01);
     }
 
     #[test]
     fn test_shl() {
         let mut cpu = Cpu::new();
-        cpu.v7 = 0xF1;
+        cpu.register[0x07] = 0xF1;
         cpu.shl(7);
-        assert_eq!(cpu.v7, 0xE2);
-        assert_eq!(cpu.vf, 0x01);
+        assert_eq!(cpu.register[0x07], 0xE2);
+        assert_eq!(cpu.register[0x0F], 0x01);
     }
 
     #[test]
