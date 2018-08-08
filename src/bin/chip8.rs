@@ -68,12 +68,12 @@ fn draw_screen<T: RenderTarget>(
 
     canvas.set_draw_color(Color::RGB(255, 255, 255));
     for (i, _) in cpu.screen().iter().enumerate().filter(|(_,&p)| p) {
-        let x1 = i % cpu::SCREEN_WIDTH;
-        let y1 = i / cpu::SCREEN_WIDTH;
+        let x = i % cpu::SCREEN_WIDTH;
+        let y = i / cpu::SCREEN_WIDTH;
         canvas
             .fill_rect(Rect::new(
-                x1 as i32,
-                y1 as i32,
+                (PIXEL_DIMENSION * x as u32) as i32,
+                (PIXEL_DIMENSION * y as u32) as i32,
                 PIXEL_DIMENSION,
                 PIXEL_DIMENSION,
             )).map_err(failure::err_msg)?;;
