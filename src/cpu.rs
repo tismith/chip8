@@ -5,15 +5,19 @@ use rand;
 ///The core CPU registers and memory
 pub struct Cpu {
     register: [u8; 16],
+    delay: u8,
+    sound: u8,
     ///actually 12 bits
     i: u16,
     ///actually 12 bits, pointer into `memory`
     pc: u16,
     sp: Vec<u16>,
-    screen: [u8; 64 * 32 / 8],
+    screen: [bool; SCREEN_WIDTH * SCREEN_HEIGHT],
     memory: [u8; 4096],
 }
 
+pub const SCREEN_WIDTH: usize = 64;
+pub const SCREEN_HEIGHT: usize = 32;
 const INSTRUCTION_WIDTH: u16 = 2;
 
 impl Cpu {
@@ -55,7 +59,7 @@ impl Cpu {
     }
 
     ///returns a slice of the screen
-    pub fn screen(&self) -> &[u8; 64 * 32 / 8] {
+    pub fn screen(&self) -> &[bool; SCREEN_WIDTH * SCREEN_HEIGHT] {
         &self.screen
     }
 
@@ -63,7 +67,7 @@ impl Cpu {
     ///clear the screen
     pub fn cls(&mut self) {
         for x in self.screen.iter_mut() {
-            *x = 0;
+            *x = false;
         }
     }
 
@@ -252,8 +256,24 @@ impl Cpu {
     ///the screen. If when drawn, clears a pixel,
     ///register VF is set to 1 otherwise it is zero. All
     ///drawing is XOR drawing (e.g. it toggles the screen pixels)
-    pub fn sprite(&mut self, register_x_id: u8, register_y_id: u8) {
-        unimplemented!()
+    pub fn sprite(&mut self, register_x_id: u8, register_y_id: u8, num_lines: u8) {
+        let mut index = usize::from(self.reg(register_y_id)) * SCREEN_WIDTH
+            + usize::from(self.reg(register_x_id));
+        for line in 0..num_lines {
+            let row = self.mem(self.i + u16::from(line));
+            for i in 0..8 {
+                let sprite_pixel = (row << i) & 0x80;
+                if sprite_pixel != 0 {
+                    let current_pixel = self.screen[index];
+                    if current_pixel {
+                        *self.reg_mut(0xf) = 0x01;
+                    }
+                    self.screen[index] = !current_pixel;
+                }
+                index += 1;
+            }
+        }
+        //TODO still need to do wrapping?
     }
 
     ///ek9e skpr k  skip if key (register rk) pressed
@@ -270,7 +290,7 @@ impl Cpu {
 
     ///fr07 gdelay vr   get delay timer into vr
     pub fn gdelay(&mut self, register_x_id: u8) {
-        unimplemented!()
+        *self.reg_mut(register_x_id) = self.delay;
     }
 
     ///fr0a key vr  wait for for keypress,put key in register vr
@@ -280,19 +300,17 @@ impl Cpu {
 
     ///fr15 sdelay vr   set the delay timer to vr
     pub fn sdelay(&mut self, register_x_id: u8) {
-        unimplemented!()
+        self.delay = self.reg(register_x_id);
     }
 
     ///fr18 ssound vr   set the sound timer to vr
     pub fn ssound(&mut self, register_x_id: u8) {
-        unimplemented!()
+        self.sound = self.reg(register_x_id);
     }
 
     ///fr1e adi vr  add register vr to the index register
     pub fn adi(&mut self, register_x_id: u8) {
-        self.i = self
-            .i
-            .wrapping_add(u16::from(self.reg(register_x_id)));
+        self.i = self.i.wrapping_add(u16::from(self.reg(register_x_id)));
     }
 
     ///fr29 font vr point I to the sprite for hexadecimal
@@ -337,10 +355,12 @@ impl Default for Cpu {
     fn default() -> Self {
         Cpu {
             register: [0; 16],
+            delay: 0,
+            sound: 0,
             i: 0,
             pc: 0x200,
             sp: Vec::new(),
-            screen: [0; 64 * 32 / 8],
+            screen: [false; SCREEN_WIDTH * SCREEN_HEIGHT],
             memory: [0; 4096],
         }
     }
@@ -353,11 +373,11 @@ mod test {
     #[test]
     fn test_cls() {
         let mut cpu = Cpu::new();
-        cpu.screen[0] = 0xFF;
-        cpu.screen[255] = 0xFF;
+        cpu.screen[0] = true;
+        cpu.screen[SCREEN_WIDTH * SCREEN_HEIGHT - 1] = true;
         cpu.cls();
-        assert_eq!(cpu.screen[0], 0x00);
-        assert_eq!(cpu.screen[255], 0x00);
+        assert_eq!(cpu.screen[0], false);
+        assert_eq!(cpu.screen[SCREEN_WIDTH * SCREEN_HEIGHT - 1], false);
     }
 
     #[test]
