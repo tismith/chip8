@@ -18,7 +18,7 @@ const INSTRUCTION_WIDTH: u16 = 2;
 
 impl Cpu {
     ///convert an id to a register reference
-    fn id_to_reg(&self, register: u8) -> u8 {
+    fn reg(&self, register: u8) -> u8 {
         if register <= 0x0F {
             return self.register[usize::from(register)];
         }
@@ -26,16 +26,37 @@ impl Cpu {
     }
 
     ///convert an id to a mutable register reference
-    fn id_to_reg_mut(&mut self, register: u8) -> &mut u8 {
+    fn reg_mut(&mut self, register: u8) -> &mut u8 {
         if register <= 0x0F {
             return &mut self.register[usize::from(register)];
         }
         panic!("unexpected register id {}", register)
     }
 
+    ///lookup a memory address
+    fn mem(&self, address: u16) -> u8 {
+        if address < 4096 {
+            return self.memory[usize::from(address)];
+        }
+        panic!("unexpected memory access at {}", address)
+    }
+
+    ///lookup a mutable memory address
+    fn mem_mut(&mut self, address: u16) -> &mut u8 {
+        if address < 4096 {
+            return &mut self.memory[usize::from(address)];
+        }
+        panic!("unexpected memory access at {}", address)
+    }
+
     ///new, initialized cpu
     pub fn new() -> Self {
         Default::default()
+    }
+
+    ///returns a slice of the screen
+    pub fn screen(&self) -> &[u8; 64 * 32 / 8] {
+        &self.screen
     }
 
     ///0x00E0
@@ -65,42 +86,42 @@ impl Cpu {
     ///0x2NNN (NNN is the address)
     ///jump to subroutine
     pub fn jsr(&mut self, address: u16) {
-        self.sp.push(self.pc + INSTRUCTION_WIDTH);
+        self.sp.push(self.pc.wrapping_add(INSTRUCTION_WIDTH));
         self.pc = address;
     }
 
     ///0x3XRR
     ///skeq - skip next instruction if register VX == constant RR
     pub fn skeq_const(&mut self, register_id: u8, constant: u8) {
-        let reg = self.id_to_reg(register_id);
+        let reg = self.reg(register_id);
         if reg == constant {
-            self.pc += INSTRUCTION_WIDTH;
+            self.pc = self.pc.wrapping_add(INSTRUCTION_WIDTH);
         }
     }
 
     ///0x4XRR
     ///skne - skip next intruction if register VX != constant RR
     pub fn skne_const(&mut self, register_id: u8, constant: u8) {
-        let reg = self.id_to_reg(register_id);
+        let reg = self.reg(register_id);
         if reg != constant {
-            self.pc += INSTRUCTION_WIDTH;
+            self.pc = self.pc.wrapping_add(INSTRUCTION_WIDTH);
         }
     }
 
     ///0x5XY0
     ///skeq - skip next instruction if register VX == register VY
     pub fn skeq_reg(&mut self, register_x_id: u8, register_y_id: u8) {
-        let x = self.id_to_reg(register_x_id);
-        let y = self.id_to_reg(register_y_id);
+        let x = self.reg(register_x_id);
+        let y = self.reg(register_y_id);
         if x == y {
-            self.pc += INSTRUCTION_WIDTH;
+            self.pc = self.pc.wrapping_add(INSTRUCTION_WIDTH);
         }
     }
 
     ///0x6XRR
     ///mov - move constant RR to register VX
     pub fn mov_const(&mut self, register_x_id: u8, constant: u8) {
-        let reg = self.id_to_reg_mut(register_x_id);
+        let reg = self.reg_mut(register_x_id);
         *reg = constant;
     }
 
@@ -108,39 +129,39 @@ impl Cpu {
     ///add = add constant RR to register VX
     ///No carry generated
     pub fn add_const(&mut self, register_id: u8, constant: u8) {
-        let reg = self.id_to_reg_mut(register_id);
+        let reg = self.reg_mut(register_id);
         *reg = reg.wrapping_add(constant);
     }
 
     ///0x8XY0
     ///mov_reg move register VY into VX
     pub fn mov_reg(&mut self, register_x_id: u8, register_y_id: u8) {
-        let y = self.id_to_reg(register_y_id);
-        let x = self.id_to_reg_mut(register_x_id);
+        let y = self.reg(register_y_id);
+        let x = self.reg_mut(register_x_id);
         *x = y;
     }
 
     ///0x8XY1
     ///or register VY with register VX, store result into register VX
     pub fn or_reg(&mut self, register_x_id: u8, register_y_id: u8) {
-        let y = self.id_to_reg(register_y_id);
-        let x = self.id_to_reg_mut(register_x_id);
+        let y = self.reg(register_y_id);
+        let x = self.reg_mut(register_x_id);
         *x |= y;
     }
 
     ///0x8XY2
     ///and register VY with register VX, store result into register VX
     pub fn and_reg(&mut self, register_x_id: u8, register_y_id: u8) {
-        let y = self.id_to_reg(register_y_id);
-        let x = self.id_to_reg_mut(register_x_id);
+        let y = self.reg(register_y_id);
+        let x = self.reg_mut(register_x_id);
         *x &= y;
     }
 
     ///0x8XY3
     ///xor register VY with register VX, store result into register VX
     pub fn xor_reg(&mut self, register_x_id: u8, register_y_id: u8) {
-        let y = self.id_to_reg(register_y_id);
-        let x = self.id_to_reg_mut(register_x_id);
+        let y = self.reg(register_y_id);
+        let x = self.reg_mut(register_x_id);
         *x ^= y;
     }
 
@@ -148,64 +169,64 @@ impl Cpu {
     ///add_reg add register VY to VX, store result in register VX,
     ///carry stored in register VF
     pub fn add_reg(&mut self, register_x_id: u8, register_y_id: u8) {
-        let y = self.id_to_reg(register_y_id);
-        let x = self.id_to_reg(register_x_id);
+        let y = self.reg(register_y_id);
+        let x = self.reg(register_x_id);
         let (result, overflow) = x.overflowing_add(y);
         if overflow {
             self.register[0x0F] = 0x01;
         }
-        *self.id_to_reg_mut(register_x_id) = result;
+        *self.reg_mut(register_x_id) = result;
     }
 
     ///8XY5
     ///sub vx,vy subtract register VY from VX, borrow stored in register VF
     ///register VF set to 1 if borrows
     pub fn sub_reg(&mut self, register_x_id: u8, register_y_id: u8) {
-        let y = self.id_to_reg(register_y_id);
-        let x = self.id_to_reg(register_x_id);
+        let y = self.reg(register_y_id);
+        let x = self.reg(register_x_id);
         let (result, borrow) = x.overflowing_sub(y);
         if borrow {
             self.register[0x0F] = 0x01;
         }
-        *self.id_to_reg_mut(register_x_id) = result;
+        *self.reg_mut(register_x_id) = result;
     }
 
     ///8X06 shr vx  shift register VX right, bit 0 goes into register VF
     pub fn shr(&mut self, register_x_id: u8) {
-        let x = self.id_to_reg(register_x_id);
+        let x = self.reg(register_x_id);
         self.register[0x0F] = x & 0x01;
-        *self.id_to_reg_mut(register_x_id) = x >> 1;
+        *self.reg_mut(register_x_id) = x >> 1;
     }
 
     ///8XY7 rsb vx,vy   subtract register VX from register VY
     ///result stored in register VX
     ///register F set to 1 if borrows
     pub fn rsb(&mut self, register_x_id: u8, register_y_id: u8) {
-        let y = self.id_to_reg(register_y_id);
-        let x = self.id_to_reg(register_x_id);
+        let y = self.reg(register_y_id);
+        let x = self.reg(register_x_id);
         let (result, borrow) = y.overflowing_sub(x);
         if borrow {
             self.register[0x0F] = 0x01;
         }
-        *self.id_to_reg_mut(register_x_id) = result;
+        *self.reg_mut(register_x_id) = result;
     }
 
     ///8X0E shl vx  shift register VX left, bit 7 stored into register VF
     pub fn shl(&mut self, register_x_id: u8) {
-        let x = self.id_to_reg(register_x_id);
+        let x = self.reg(register_x_id);
         if x & 0x80 != 0 {
             self.register[0x0F] = 0x01;
         }
-        *self.id_to_reg_mut(register_x_id) = x << 1;
+        *self.reg_mut(register_x_id) = x << 1;
     }
 
     ///9XY0 skne vx,vy  skip next instruction
     ///if register VX != register VY
     pub fn skne_reg(&mut self, register_x_id: u8, register_y_id: u8) {
-        let x = self.id_to_reg(register_x_id);
-        let y = self.id_to_reg(register_y_id);
+        let x = self.reg(register_x_id);
+        let y = self.reg(register_y_id);
         if x != y {
-            self.pc += INSTRUCTION_WIDTH;
+            self.pc = self.pc.wrapping_add(INSTRUCTION_WIDTH);
         }
     }
 
@@ -216,12 +237,12 @@ impl Cpu {
 
     ///BNNN jmi nnn Jump to address NNN + register V0
     pub fn jmi(&mut self, value: u16) {
-        self.pc = u16::from(self.id_to_reg(0)).wrapping_add(value & 0xFFF);
+        self.pc = u16::from(self.reg(0)).wrapping_add(value & 0xFFF);
     }
 
     ///CXKK rand vx,kk register VX = random number AND KK
     pub fn rand(&mut self, register_x_id: u8, value: u8) {
-        *self.id_to_reg_mut(register_x_id) = rand::random::<u8>() & value;
+        *self.reg_mut(register_x_id) = rand::random::<u8>() & value;
     }
 
     ///DXYN sprite vx,vy,n  Draw sprite at screen location
@@ -271,7 +292,7 @@ impl Cpu {
     pub fn adi(&mut self, register_x_id: u8) {
         self.i = self
             .i
-            .wrapping_add(u16::from(self.id_to_reg(register_x_id)));
+            .wrapping_add(u16::from(self.reg(register_x_id)));
     }
 
     ///fr29 font vr point I to the sprite for hexadecimal
@@ -288,13 +309,14 @@ impl Cpu {
             error!("bcd called with I too large: {}", self.i);
             return;
         }
-        let x = self.id_to_reg(register_x_id);
+        let x = self.reg(register_x_id);
         let x100 = x / 100;
         let x10 = (x - (x100 * 100)) / 10;
         let x1 = x - (x100 * 100) - (x10 * 10);
-        self.memory[usize::from(self.i)] = x100;
-        self.memory[usize::from(self.i + 1)] = x10;
-        self.memory[usize::from(self.i + 2)] = x1;
+        let i = self.i;
+        *self.mem_mut(i) = x100;
+        *self.mem_mut(i + 1) = x10;
+        *self.mem_mut(i + 2) = x1;
     }
 
     ///fr55 str v0-vr   store registers v0-vr at location I onwards
@@ -379,7 +401,7 @@ mod test {
     #[test]
     fn test_skeq_const() {
         let mut cpu = Cpu::new();
-        *cpu.id_to_reg_mut(0) = 0x01;
+        *cpu.reg_mut(0) = 0x01;
         cpu.skeq_const(0, 0x01);
         assert_eq!(cpu.pc, 0x202);
 
@@ -390,7 +412,7 @@ mod test {
     #[test]
     fn test_skne_const() {
         let mut cpu = Cpu::new();
-        *cpu.id_to_reg_mut(0) = 0x01;
+        *cpu.reg_mut(0) = 0x01;
         cpu.skne_const(0, 0x01);
         assert_eq!(cpu.pc, 0x200);
 
@@ -401,12 +423,12 @@ mod test {
     #[test]
     fn test_skeq_reg() {
         let mut cpu = Cpu::new();
-        *cpu.id_to_reg_mut(0) = 0x01;
-        *cpu.id_to_reg_mut(1) = 0x01;
+        *cpu.reg_mut(0) = 0x01;
+        *cpu.reg_mut(1) = 0x01;
         cpu.skeq_reg(0, 1);
         assert_eq!(cpu.pc, 0x202);
 
-        *cpu.id_to_reg_mut(2) = 0x02;
+        *cpu.reg_mut(2) = 0x02;
         cpu.skeq_reg(1, 2);
         assert_eq!(cpu.pc, 0x202);
     }
@@ -414,57 +436,57 @@ mod test {
     #[test]
     fn test_mov_const() {
         let mut cpu = Cpu::new();
-        *cpu.id_to_reg_mut(1) = 0x01;
+        *cpu.reg_mut(1) = 0x01;
         cpu.mov_const(1, 0x10);
-        assert_eq!(cpu.id_to_reg(1), 0x10);
+        assert_eq!(cpu.reg(1), 0x10);
     }
 
     #[test]
     fn test_add_const() {
         let mut cpu = Cpu::new();
-        *cpu.id_to_reg_mut(1) = 0x01;
+        *cpu.reg_mut(1) = 0x01;
         cpu.add_const(1, 0x10);
-        assert_eq!(cpu.id_to_reg(1), 0x01 + 0x10);
+        assert_eq!(cpu.reg(1), 0x01 + 0x10);
     }
 
     #[test]
     fn test_mov_reg() {
         let mut cpu = Cpu::new();
-        *cpu.id_to_reg_mut(0xA) = 0x01;
-        *cpu.id_to_reg_mut(3) = 0x10;
+        *cpu.reg_mut(0xA) = 0x01;
+        *cpu.reg_mut(3) = 0x10;
         cpu.mov_reg(0xA, 3);
-        assert_eq!(cpu.id_to_reg(0xA), 0x10);
-        assert_eq!(cpu.id_to_reg(3), 0x10);
+        assert_eq!(cpu.reg(0xA), 0x10);
+        assert_eq!(cpu.reg(3), 0x10);
     }
 
     #[test]
     fn test_or_reg() {
         let mut cpu = Cpu::new();
-        *cpu.id_to_reg_mut(0xA) = 0x01;
-        *cpu.id_to_reg_mut(3) = 0x10;
+        *cpu.reg_mut(0xA) = 0x01;
+        *cpu.reg_mut(3) = 0x10;
         cpu.or_reg(0xA, 3);
-        assert_eq!(cpu.id_to_reg(0xA), 0x01 | 0x10);
-        assert_eq!(cpu.id_to_reg(3), 0x10);
+        assert_eq!(cpu.reg(0xA), 0x01 | 0x10);
+        assert_eq!(cpu.reg(3), 0x10);
     }
 
     #[test]
     fn test_xor_reg() {
         let mut cpu = Cpu::new();
-        *cpu.id_to_reg_mut(0xA) = 0x01;
-        *cpu.id_to_reg_mut(3) = 0x10;
+        *cpu.reg_mut(0xA) = 0x01;
+        *cpu.reg_mut(3) = 0x10;
         cpu.xor_reg(0xA, 3);
-        assert_eq!(cpu.id_to_reg(0xA), 0x01 ^ 0x10);
-        assert_eq!(cpu.id_to_reg(3), 0x10);
+        assert_eq!(cpu.reg(0xA), 0x01 ^ 0x10);
+        assert_eq!(cpu.reg(3), 0x10);
     }
 
     #[test]
     fn test_and_reg() {
         let mut cpu = Cpu::new();
-        *cpu.id_to_reg_mut(2) = 0x01;
-        *cpu.id_to_reg_mut(3) = 0x10;
+        *cpu.reg_mut(2) = 0x01;
+        *cpu.reg_mut(3) = 0x10;
         cpu.and_reg(2, 3);
-        assert_eq!(cpu.id_to_reg(2), 0x01 & 0x10);
-        assert_eq!(cpu.id_to_reg(3), 0x10);
+        assert_eq!(cpu.reg(2), 0x01 & 0x10);
+        assert_eq!(cpu.reg(3), 0x10);
     }
 
     #[test]
@@ -558,12 +580,12 @@ mod test {
     #[test]
     fn test_skne_reg() {
         let mut cpu = Cpu::new();
-        *cpu.id_to_reg_mut(0) = 0x01;
-        *cpu.id_to_reg_mut(1) = 0x01;
+        *cpu.reg_mut(0) = 0x01;
+        *cpu.reg_mut(1) = 0x01;
         cpu.skne_reg(0, 1);
         assert_eq!(cpu.pc, 0x200);
 
-        *cpu.id_to_reg_mut(2) = 0x02;
+        *cpu.reg_mut(2) = 0x02;
         cpu.skne_reg(1, 2);
         assert_eq!(cpu.pc, 0x202);
     }
@@ -581,7 +603,7 @@ mod test {
     #[test]
     fn test_jmi() {
         let mut cpu = Cpu::new();
-        *cpu.id_to_reg_mut(0) = 0x10;
+        *cpu.reg_mut(0) = 0x10;
         cpu.jmi(0xF00);
         assert_eq!(cpu.pc, 0xF10);
     }
@@ -589,27 +611,27 @@ mod test {
     #[test]
     fn test_rand() {
         let mut cpu = Cpu::new();
-        *cpu.id_to_reg_mut(0xB) = 0x10;
+        *cpu.reg_mut(0xB) = 0x10;
         cpu.rand(0xB, 0x0F);
-        assert_ne!(cpu.id_to_reg(0xB), 0x10);
-        assert_eq!(cpu.id_to_reg(0xB) & 0xF0, 0x00);
+        assert_ne!(cpu.reg(0xB), 0x10);
+        assert_eq!(cpu.reg(0xB) & 0xF0, 0x00);
     }
 
     #[test]
     fn test_bcd() {
         let mut cpu = Cpu::new();
-        *cpu.id_to_reg_mut(0xB) = 123;
+        *cpu.reg_mut(0xB) = 123;
         cpu.i = 0x300;
         cpu.bcd(0xB);
-        assert_eq!(cpu.memory[0x300], 1);
-        assert_eq!(cpu.memory[0x301], 2);
-        assert_eq!(cpu.memory[0x302], 3);
+        assert_eq!(cpu.mem(0x300), 1);
+        assert_eq!(cpu.mem(0x301), 2);
+        assert_eq!(cpu.mem(0x302), 3);
     }
 
     #[test]
     fn test_adi() {
         let mut cpu = Cpu::new();
-        *cpu.id_to_reg_mut(7) = 0x10;
+        *cpu.reg_mut(7) = 0x10;
         cpu.i = 0x01;
         cpu.adi(7);
         assert_eq!(cpu.i, 0x10 + 0x01);
