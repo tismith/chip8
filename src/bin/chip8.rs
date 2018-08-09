@@ -11,8 +11,8 @@ use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::Canvas;
 use sdl2::render::RenderTarget;
-use std::time::Duration;
 use std::fs::read;
+use std::time::Duration;
 
 const PIXEL_DIMENSION: u32 = 10;
 const TICKS_PER_TIMER: u32 = 10;

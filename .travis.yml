@@ -27,29 +27,6 @@ matrix:
         - cargo fmt --all -- --check
         - cargo clippy
 
-    - env: NAME='cargo-travis'
-      sudo: required # travis-ci/travis-ci#9061
-      before_script:
-        - cargo install cargo-update || echo "cargo-update already installed"
-        - cargo install cargo-travis || echo "cargo-travis already installed"
-        - cargo install-update -a
-      script:
-        - |
-          cargo build --verbose &&
-          cargo coverage --verbose &&
-          bash <(curl -s https://codecov.io/bash) -s target/kcov
-      addons: # required for kcov
-        apt:
-          packages:
-            - libegl1-mesa-dev
-            - libgles2-mesa-dev
-            - libsdl2-dev
-            - libcurl4-openssl-dev
-            - libelf-dev
-            - libdw-dev
-            - binutils-dev
-            - cmake
-
 before_install:
   - if [ "$TRAVIS_OS_NAME" = osx ]; then brew install sdl2; fi
   - if [ "$TRAVIS_OS_NAME" = linux ]; then sudo apt-get install -y libsdl2-dev libegl1-mesa-dev libgles2-mesa-dev; fi
