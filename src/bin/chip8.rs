@@ -111,11 +111,13 @@ fn draw_screen<T: RenderTarget>(
     canvas: &mut Canvas<T>,
     cpu: &cpu::Cpu,
 ) -> Result<(), failure::Error> {
-    canvas.set_draw_color(Color::RGB(0, 0, 0));
-    canvas.clear();
+    for (i, filled) in cpu.screen().iter().enumerate() {
+        if *filled {
+            canvas.set_draw_color(Color::RGB(255, 255, 255));
+        } else {
+            canvas.set_draw_color(Color::RGB(0, 0, 0));
+        }
 
-    canvas.set_draw_color(Color::RGB(255, 255, 255));
-    for (i, _) in cpu.screen().iter().enumerate().filter(|(_, &p)| p) {
         let x = i % cpu::SCREEN_WIDTH;
         let y = i / cpu::SCREEN_WIDTH;
         canvas
