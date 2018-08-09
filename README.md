@@ -20,5 +20,4 @@ OPTIONS:
     -t, --timestamp <timestamp>    prepend log lines with a timestamp [possible values: none, sec, ms, ns]
 ```
 
-Screenshot:
-[![MAZE](maze.png)]
+![MAZE](maze.png)
