@@ -19,6 +19,11 @@ fn matcher<'a, 'b>() -> clap::App<'a, 'b> {
                 .multiple(true)
                 .help("Increase message verbosity, maximum 4"),
         ).arg(
+            clap::Arg::with_name("rom")
+                .short("r")
+                .takes_value(true)
+                .help("Path to the ROM to load"),
+        ).arg(
             clap::Arg::with_name("quiet")
                 .short("q")
                 .long("quiet")
@@ -54,11 +59,13 @@ fn parse(matches: &clap::ArgMatches) -> Result<types::Settings, clap::Error> {
             info: None,
         })?,
     };
+    let rom_path = matches.value_of("rom").map(|x| x.to_string());
 
     Ok(types::Settings {
         verbosity,
         quiet,
         timestamp,
+        rom_path,
         ..Default::default()
     })
 }
