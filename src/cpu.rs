@@ -337,10 +337,11 @@ impl Cpu {
     }
 
     ///8XY6 shr vx  shift register VX right, bit 0 goes into register VF
-    fn shr(&mut self, register_x_id: u8, register_y_id: u8) {
+    fn shr(&mut self, register_x_id: u8, _register_y_id: u8) {
         let x = self.reg(register_x_id);
         self.register[0x0F] = x & 0x01;
-        *self.reg_mut(register_y_id) = x >> 1;
+        //*self.reg_mut(register_y_id) = x >> 1;
+        *self.reg_mut(register_x_id) = x >> 1;
         self.pc = self.pc.wrapping_add(INSTRUCTION_WIDTH);
     }
 
@@ -359,12 +360,13 @@ impl Cpu {
     }
 
     ///8XYE shl vx  shift register VX left, bit 7 stored into register VF
-    fn shl(&mut self, register_x_id: u8, register_y_id: u8) {
+    fn shl(&mut self, register_x_id: u8, _register_y_id: u8) {
         let x = self.reg(register_x_id);
         if x & 0x80 != 0 {
             self.register[0x0F] = 0x01;
         }
-        *self.reg_mut(register_y_id) = x << 1;
+        //*self.reg_mut(register_y_id) = x << 1;
+        *self.reg_mut(register_x_id) = x << 1;
         self.pc = self.pc.wrapping_add(INSTRUCTION_WIDTH);
     }
 
@@ -755,7 +757,7 @@ mod test {
         let mut cpu = Cpu::new();
         cpu.register[0x07] = 0xF1;
         cpu.shr(7, 8);
-        assert_eq!(cpu.register[0x08], 0x78);
+        assert_eq!(cpu.register[0x07], 0x78);
         assert_eq!(cpu.register[0x0F], 0x01);
     }
 
@@ -784,7 +786,7 @@ mod test {
         let mut cpu = Cpu::new();
         cpu.register[0x07] = 0xF1;
         cpu.shl(7, 8);
-        assert_eq!(cpu.register[0x08], 0xE2);
+        assert_eq!(cpu.register[0x07], 0xE2);
         assert_eq!(cpu.register[0x0F], 0x01);
     }
 
