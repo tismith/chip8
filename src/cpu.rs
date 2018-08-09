@@ -317,6 +317,8 @@ impl Cpu {
         let (result, overflow) = x.overflowing_add(y);
         if overflow {
             self.register[0x0F] = 0x01;
+        } else {
+            self.register[0x0F] = 0x00;
         }
         *self.reg_mut(register_x_id) = result;
         self.pc = self.pc.wrapping_add(INSTRUCTION_WIDTH);
@@ -331,6 +333,8 @@ impl Cpu {
         let (result, borrow) = x.overflowing_sub(y);
         if !borrow {
             self.register[0x0F] = 0x01;
+        } else {
+            self.register[0x0F] = 0x00;
         }
         *self.reg_mut(register_x_id) = result;
         self.pc = self.pc.wrapping_add(INSTRUCTION_WIDTH);
@@ -354,6 +358,8 @@ impl Cpu {
         let (result, borrow) = y.overflowing_sub(x);
         if !borrow {
             self.register[0x0F] = 0x01;
+        } else {
+            self.register[0x0F] = 0x00;
         }
         *self.reg_mut(register_x_id) = result;
         self.pc = self.pc.wrapping_add(INSTRUCTION_WIDTH);
@@ -364,6 +370,8 @@ impl Cpu {
         let x = self.reg(register_x_id);
         if x & 0x80 != 0 {
             self.register[0x0F] = 0x01;
+        } else {
+            self.register[0x0F] = 0x00;
         }
         //*self.reg_mut(register_y_id) = x << 1;
         *self.reg_mut(register_x_id) = x << 1;
