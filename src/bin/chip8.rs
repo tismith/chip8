@@ -60,10 +60,10 @@ fn main() -> Result<(), exitfailure::ExitFailure> {
                 } => break 'running,
                 Event::KeyDown {
                     keycode: Some(key), ..
-                } => *cpu.key_mut(map_key(key)) = false,
+                } => *cpu.key_mut(map_key(key)) = true,
                 Event::KeyUp {
                     keycode: Some(key), ..
-                } => *cpu.key_mut(map_key(key)) = true,
+                } => *cpu.key_mut(map_key(key)) = false,
                 _ => {}
             }
         }
