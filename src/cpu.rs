@@ -329,7 +329,7 @@ impl Cpu {
         let y = self.reg(register_y_id);
         let x = self.reg(register_x_id);
         let (result, borrow) = x.overflowing_sub(y);
-        if borrow {
+        if !borrow {
             self.register[0x0F] = 0x01;
         }
         *self.reg_mut(register_x_id) = result;
@@ -351,7 +351,7 @@ impl Cpu {
         let y = self.reg(register_y_id);
         let x = self.reg(register_x_id);
         let (result, borrow) = y.overflowing_sub(x);
-        if borrow {
+        if !borrow {
             self.register[0x0F] = 0x01;
         }
         *self.reg_mut(register_x_id) = result;
@@ -550,10 +550,8 @@ impl Default for Cpu {
             memory: [0; 4096],
         };
 
-        for (index, byte) in FONTSET.iter().enumerate() {
-            cpu.memory[usize::from(FONTSET_ADDRESS) + index] = *byte;
-        }
-
+        cpu.memory[usize::from(FONTSET_ADDRESS)..(usize::from(FONTSET_ADDRESS) + FONTSET.len())]
+            .copy_from_slice(&FONTSET);
         cpu
     }
 }
@@ -739,6 +737,7 @@ mod test {
         cpu.sub_reg(8, 9);
         assert_eq!(cpu.register[0x08], 0x10 - 0x01);
         assert_eq!(cpu.register[0x09], 0x01);
+        assert_eq!(cpu.register[0x0F], 0x01);
     }
 
     #[test]
@@ -748,7 +747,7 @@ mod test {
         cpu.register[0x06] = 0x01;
         cpu.sub_reg(5, 6);
         assert_eq!(cpu.register[0x05], 0xFF);
-        assert_eq!(cpu.register[0x0F], 0x01);
+        assert_eq!(cpu.register[0x0F], 0x00);
     }
 
     #[test]
@@ -777,7 +776,7 @@ mod test {
         cpu.register[0x06] = 0x00;
         cpu.rsb(5, 6);
         assert_eq!(cpu.register[0x05], 0xFF);
-        assert_eq!(cpu.register[0x0F], 0x01);
+        assert_eq!(cpu.register[0x0F], 0x00);
     }
 
     #[test]
