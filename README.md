@@ -21,4 +21,4 @@ OPTIONS:
 ```
 
 Screenshot:
-![MAZE](maze.png)
+[![MAZE](maze.png)]
