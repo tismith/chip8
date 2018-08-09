@@ -21,3 +21,5 @@ OPTIONS:
 ```
 
 ![MAZE](maze.png)
+
+![TICTAC](tictac.png)
