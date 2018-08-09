@@ -19,3 +19,6 @@ OPTIONS:
     -r <rom>                       Path to the ROM to load
     -t, --timestamp <timestamp>    prepend log lines with a timestamp [possible values: none, sec, ms, ns]
 ```
+
+Screenshot:
+![MAZE](maze.png)
