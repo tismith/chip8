@@ -40,8 +40,7 @@ fn main() -> Result<(), exitfailure::ExitFailure> {
             "CHIP-8",
             PIXEL_DIMENSION * cpu::SCREEN_WIDTH as u32,
             PIXEL_DIMENSION * cpu::SCREEN_HEIGHT as u32,
-        )
-        .position_centered()
+        ).position_centered()
         .opengl()
         .build()
         .unwrap();
@@ -73,11 +72,8 @@ fn main() -> Result<(), exitfailure::ExitFailure> {
         }
         counter = counter.wrapping_add(1);
 
-        if counter % TICKS_PER_TIMER == 0 {
-            //fire off CPU timers
-            if cpu.tick_timers() {
-                info!("BEEP!");
-            }
+        if counter % TICKS_PER_TIMER == 0 && cpu.tick_timers() {
+            info!("BEEP!");
         }
 
         cpu.tick();
@@ -133,8 +129,7 @@ fn draw_screen<T: RenderTarget>(
                 (PIXEL_DIMENSION * y as u32) as i32,
                 PIXEL_DIMENSION,
                 PIXEL_DIMENSION,
-            ))
-            .map_err(failure::err_msg)?;;
+            )).map_err(failure::err_msg)?;;
     }
 
     canvas.present();
