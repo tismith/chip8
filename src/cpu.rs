@@ -45,7 +45,33 @@ const FONTSET: [u8; 5 * 16] = [
     0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 ];
 
+impl Default for Cpu {
+    fn default() -> Self {
+        let mut cpu = Cpu {
+            register: [0; 16],
+            delay: 0,
+            sound: 0,
+            i: 0,
+            pc: INITIAL_PC,
+            sp: Vec::new(),
+            key: [false; 16],
+            unknown_key: false,
+            screen: [false; SCREEN_WIDTH * SCREEN_HEIGHT],
+            memory: [0; 4096],
+        };
+
+        cpu.memory[usize::from(FONTSET_ADDRESS)..(usize::from(FONTSET_ADDRESS) + FONTSET.len())]
+            .copy_from_slice(&FONTSET);
+        cpu
+    }
+}
+
 impl Cpu {
+    ///new, initialized cpu
+    pub fn new() -> Self {
+        Default::default()
+    }
+
     ///lookup a mutable key register
     pub fn key_mut(&mut self, keycode: u8) -> &mut bool {
         if keycode < 0x0F {
@@ -54,11 +80,6 @@ impl Cpu {
             warn!("unexpected keycode {}", keycode);
             &mut self.unknown_key
         }
-    }
-
-    ///new, initialized cpu
-    pub fn new() -> Self {
-        Default::default()
     }
 
     ///copies the rom into memory
@@ -143,7 +164,6 @@ impl Cpu {
         }
     }
 
-    ///returns a slice of the screen
     pub fn screen(&self) -> &[bool; SCREEN_WIDTH * SCREEN_HEIGHT] {
         &self.screen
     }
@@ -489,7 +509,13 @@ impl Cpu {
 
     ///fr1e adi vr  add register vr to the index register
     fn adi(&mut self, register_x_id: u8) {
-        self.i = self.i.wrapping_add(u16::from(self.reg(register_x_id)));
+        let (result, overflow) = self.i.overflowing_add(u16::from(self.reg(register_x_id)));
+        if overflow {
+            self.register[0x0F] = 0x01;
+        } else {
+            self.register[0x0F] = 0x00;
+        }
+        self.i = result;
         self.pc = self.pc.wrapping_add(INSTRUCTION_WIDTH);
     }
 
@@ -542,27 +568,6 @@ impl Cpu {
             self.i += 1;
         }
         self.pc = self.pc.wrapping_add(INSTRUCTION_WIDTH);
-    }
-}
-
-impl Default for Cpu {
-    fn default() -> Self {
-        let mut cpu = Cpu {
-            register: [0; 16],
-            delay: 0,
-            sound: 0,
-            i: 0,
-            pc: INITIAL_PC,
-            sp: Vec::new(),
-            key: [false; 16],
-            unknown_key: false,
-            screen: [false; SCREEN_WIDTH * SCREEN_HEIGHT],
-            memory: [0; 4096],
-        };
-
-        cpu.memory[usize::from(FONTSET_ADDRESS)..(usize::from(FONTSET_ADDRESS) + FONTSET.len())]
-            .copy_from_slice(&FONTSET);
-        cpu
     }
 }
 

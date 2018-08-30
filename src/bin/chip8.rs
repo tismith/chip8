@@ -15,8 +15,11 @@ use std::fs::read;
 use std::time::Duration;
 
 const PIXEL_DIMENSION: u32 = 10;
-const TICKS_PER_TIMER: u32 = 10;
+const TICKS_PER_TIMER: u32 = 100;
+const DISPLAY_FREQUENCY: u32 = 60;
+const DISPLAY_PERIOD: u32 = 1_000_000_000u32 / DISPLAY_FREQUENCY;
 const TICK_PERIOD: u32 = 1_000_000_000u32 / (TICKS_PER_TIMER * cpu::TIMER_FREQUENCY as u32);
+const TICKS_PER_DISPLAY: u32 = DISPLAY_PERIOD / TICK_PERIOD;
 
 fn main() -> Result<(), exitfailure::ExitFailure> {
     let mut config = utils::cmdline::parse_cmdline();
@@ -37,7 +40,8 @@ fn main() -> Result<(), exitfailure::ExitFailure> {
             "CHIP-8",
             PIXEL_DIMENSION * cpu::SCREEN_WIDTH as u32,
             PIXEL_DIMENSION * cpu::SCREEN_HEIGHT as u32,
-        ).position_centered()
+        )
+        .position_centered()
         .opengl()
         .build()
         .unwrap();
@@ -49,7 +53,7 @@ fn main() -> Result<(), exitfailure::ExitFailure> {
     canvas.present();
     let mut event_pump = sdl_context.event_pump().unwrap();
 
-    let mut counter = 0;
+    let mut counter = 0u32;
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -67,17 +71,20 @@ fn main() -> Result<(), exitfailure::ExitFailure> {
                 _ => {}
             }
         }
-        counter += 1;
-        if counter == TICKS_PER_TIMER {
+        counter = counter.wrapping_add(1);
+
+        if counter % TICKS_PER_TIMER == 0 {
             //fire off CPU timers
             if cpu.tick_timers() {
                 info!("BEEP!");
             }
-            counter = 0;
         }
+
         cpu.tick();
 
-        draw_screen(&mut canvas, &cpu)?;
+        if counter % TICKS_PER_DISPLAY == 0 {
+            draw_screen(&mut canvas, &cpu)?;
+        }
 
         std::thread::sleep(Duration::new(0, TICK_PERIOD));
     }
@@ -126,7 +133,8 @@ fn draw_screen<T: RenderTarget>(
                 (PIXEL_DIMENSION * y as u32) as i32,
                 PIXEL_DIMENSION,
                 PIXEL_DIMENSION,
-            )).map_err(failure::err_msg)?;;
+            ))
+            .map_err(failure::err_msg)?;;
     }
 
     canvas.present();
