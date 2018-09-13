@@ -60,8 +60,9 @@ impl Default for Cpu {
             memory: [0; 4096],
         };
 
-        cpu.memory[usize::from(FONTSET_ADDRESS)..(usize::from(FONTSET_ADDRESS) + FONTSET.len())]
-            .copy_from_slice(&FONTSET);
+        let fontset_range =
+            usize::from(FONTSET_ADDRESS)..(usize::from(FONTSET_ADDRESS) + FONTSET.len());
+        cpu.memory[fontset_range].copy_from_slice(&FONTSET);
         cpu
     }
 }
