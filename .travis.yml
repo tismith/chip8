@@ -2,8 +2,18 @@ email:
   on_success: change
   on_failure: always
 language: rust
-cache: cargo
 env: # required for allow_failures
+
+# Recommended caching strategy from https://levans.fr/rust_travis_cache.html
+# Need to cache the whole `.cargo` directory to keep .crates.toml for
+# cargo-update to work
+cache:
+  directories:
+    - /home/travis/.cargo
+# But don't cache the cargo registry
+before_cache:
+  - rm -rf /home/travis/.cargo/registry
+
 os:
   - linux
   - osx
@@ -14,12 +24,9 @@ rust:
 
 matrix:
   fast_finish: true
-  allow_failures:
-    #- env: NAME='cargo-travis'
-    #- rust: nightly
   include:
-    - rust: nightly
-      env: NAME='cargo-clippy'
+    - rust: stable
+      env: NAME='linting'
       before_script:
         - rustup component add rustfmt-preview
         - rustup component add clippy-preview
